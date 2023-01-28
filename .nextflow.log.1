@@ -1,0 +1,37 @@
+Jan-28 12:27:31.339 [main] DEBUG nextflow.cli.Launcher - $> nextflow run main.nf
+Jan-28 12:27:31.460 [main] INFO  nextflow.cli.CmdRun - N E X T F L O W  ~  version 22.10.4
+Jan-28 12:27:31.485 [main] DEBUG nextflow.plugin.PluginsFacade - Setting up plugin manager > mode=prod; embedded=false; plugins-dir=/home/rchap/.nextflow/plugins; core-plugins: nf-amazon@1.11.2,nf-azure@0.14.2,nf-codecommit@0.1.2,nf-console@1.0.4,nf-ga4gh@1.0.4,nf-google@1.4.5,nf-tower@1.5.6,nf-wave@0.5.2
+Jan-28 12:27:31.496 [main] INFO  org.pf4j.DefaultPluginStatusProvider - Enabled plugins: []
+Jan-28 12:27:31.497 [main] INFO  org.pf4j.DefaultPluginStatusProvider - Disabled plugins: []
+Jan-28 12:27:31.501 [main] INFO  org.pf4j.DefaultPluginManager - PF4J version 3.4.1 in 'deployment' mode
+Jan-28 12:27:31.512 [main] INFO  org.pf4j.AbstractPluginManager - No plugins
+Jan-28 12:27:31.584 [main] DEBUG nextflow.cli.CmdRun - Applied DSL=2 from script declararion
+Jan-28 12:27:31.611 [main] INFO  nextflow.cli.CmdRun - Launching `main.nf` [tiny_booth] DSL2 - revision: 8d6708d564
+Jan-28 12:27:31.612 [main] DEBUG nextflow.plugin.PluginsFacade - Plugins default=[]
+Jan-28 12:27:31.612 [main] DEBUG nextflow.plugin.PluginsFacade - Plugins resolved requirement=[]
+Jan-28 12:27:31.624 [main] DEBUG nextflow.secret.LocalSecretsProvider - Secrets store: /home/rchap/.nextflow/secrets/store.json
+Jan-28 12:27:31.633 [main] DEBUG nextflow.secret.SecretsLoader - Discovered secrets providers: [nextflow.secret.LocalSecretsProvider@796d3c9f] - activable => nextflow.secret.LocalSecretsProvider@796d3c9f
+Jan-28 12:27:31.716 [main] DEBUG nextflow.Session - Session UUID: d85214ad-56d1-4c30-a10d-fa5803969161
+Jan-28 12:27:31.716 [main] DEBUG nextflow.Session - Run name: tiny_booth
+Jan-28 12:27:31.717 [main] DEBUG nextflow.Session - Executor pool size: 56
+Jan-28 12:27:31.729 [main] DEBUG nextflow.util.ThreadPoolBuilder - Creating thread pool 'FileTransfer' minSize=10; maxSize=168; workQueue=LinkedBlockingQueue[10000]; allowCoreThreadTimeout=false
+Jan-28 12:27:31.761 [main] DEBUG nextflow.cli.CmdRun - 
+  Version: 22.10.4 build 5836
+  Created: 09-12-2022 09:58 UTC (03:58 CDT)
+  System: Linux 5.4.0-131-generic
+  Runtime: Groovy 3.0.13 on OpenJDK 64-Bit Server VM 17.0.3-internal+0-adhoc..src
+  Encoding: UTF-8 (UTF-8)
+  Process: 4106574@ubuntu [127.0.1.1]
+  CPUs: 56 - Mem: 251.8 GB (8.8 GB) - Swap: 22.3 GB (22.2 GB)
+Jan-28 12:27:31.790 [main] DEBUG nextflow.Session - Work-dir: /home/rchap/Working/Pipelines-and-Scripts/ont-ref-based-assembly/work [ext2/ext3]
+Jan-28 12:27:31.790 [main] DEBUG nextflow.Session - Script base path does not exist or is not a directory: /home/rchap/Working/Pipelines-and-Scripts/ont-ref-based-assembly/bin
+Jan-28 12:27:31.800 [main] DEBUG nextflow.executor.ExecutorFactory - Extension executors providers=[]
+Jan-28 12:27:31.810 [main] DEBUG nextflow.Session - Observer factory: DefaultObserverFactory
+Jan-28 12:27:31.835 [main] DEBUG nextflow.cache.CacheFactory - Using Nextflow cache factory: nextflow.cache.DefaultCacheFactory
+Jan-28 12:27:31.844 [main] DEBUG nextflow.util.CustomThreadPool - Creating default thread pool > poolSize: 57; maxThreads: 1000
+Jan-28 12:27:32.147 [main] DEBUG nextflow.Session - Session start
+Jan-28 12:27:33.326 [main] DEBUG nextflow.script.ScriptRunner - > Launching execution
+Jan-28 12:27:33.345 [main] INFO  nextflow.script.BaseScript - Input Directory: false
+Jan-28 12:27:34.035 [main] WARN  nextflow.script.ScriptMeta - A process with name 'QC_Report_Trimmed' is defined more than once in module script: /home/rchap/Working/Pipelines-and-Scripts/ont-ref-based-assembly/main.nf -- Make sure to not define the same function as process
+Jan-28 12:27:34.036 [main] WARN  nextflow.script.ScriptMeta - A process with name 'QC_Report_Filtered' is defined more than once in module script: /home/rchap/Working/Pipelines-and-Scripts/ont-ref-based-assembly/main.nf -- Make sure to not define the same function as process
+Jan-28 12:27:34.039 [main] INFO  nextflow.script.BaseScript - ERROR: No input directory provided. Pipeline requires an input directory.
