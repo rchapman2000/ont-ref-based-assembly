@@ -107,7 +107,6 @@ params.primers = false
 params.minClippedReadLen = 0
 
 
-println "Input Directory: ${params.input}"
 
 include { Setup } from './modules.nf'
 include { QC_Report } from './modules.nf'
@@ -124,6 +123,7 @@ include { Generate_Consensus } from './modules.nf'
 include { Write_Summary } from './modules.nf'
 
 // Checks the input parameter
+inDir = ''
 if (params.input == false) {
     // If the parameter is not set, notify the user and exit.
     println "ERROR: No input directory provided. Pipeline requires an input directory."
@@ -134,12 +134,19 @@ else if (!(file(params.input).isDirectory())) {
     println "ERROR: ${params.input} is not an existing directory."
     exit(1)
 }
+else {
+    // If the parameter is set, convert the value provided to a file type
+    // to get the absolute path, and then convert back to a string to be
+    // used in the pipeline.
+    inDir = file(params.input).toString()
+    println "Input Directory: ${inDir}"
+}
 
 // Create a channel for hte input files.
 inputFiles_ch = Channel
     // Pull from pairs of files (illumina fastq files denoted by having R1 or R2 in
     // the file name).
-    .fromPath("${params.input}*.fastq*")
+    .fromPath("${inDir}/*.fastq*")
     // The .fromFilePairs() function spits out a list where the first 
     // item is the base file name, and the second is a list of the files.
     // This command creates a tuple with the base file name and two files.
