@@ -62,8 +62,8 @@ def main():
             print(totalCov)
         else:
             # If there are multiple segments, print the coverage followed by a list
-            # of the segment coverages separated by ';' characters.
-            print(str(totalCov) + " [{0}]".format(";".join(str(cov) for cov in segmentCovs)))
+            # of the segment coverages separated by '; ' characters.
+            print(str(totalCov) + " [{0}]".format("; ".join(str(cov) for cov in segmentCovs)))
 
 if __name__ == "__main__":
     main()

@@ -452,6 +452,10 @@ process Generate_Consensus {
     shift the genomic coordinates (we would end up masking things we did not want to).
 
     Finally, the fasta is wrapped to make it visually appealing. 
+
+    Old Code:
+    samtools mpileup --no-BAQ -d 100000 -x -A -a -Q 0 -f ${ref} ${bam} > all-sites.pileup
+    python3 ${baseDir}/scripts/pileup_to_bed.py -i all-sites.pileup -o all-sites.bed 
     */
     """
     #!/bin/bash
@@ -459,8 +463,7 @@ process Generate_Consensus {
     samtools mpileup --no-BAQ -d 100000 -x -A -Q 0 -f ${ref} ${bam} > ${base}.pileup
     python3 ${baseDir}/scripts/pileup_to_bed.py -i ${base}.pileup -o passed-sites.bed --minCov ${minCov}
 
-    samtools mpileup --no-BAQ -d 100000 -x -A -a -Q 0 -f ${ref} ${bam} > all-sites.pileup
-    python3 ${baseDir}/scripts/pileup_to_bed.py -i all-sites.pileup -o all-sites.bed 
+    bioawk -c fastx '{print \$name"\t0\t"length(\$seq)}' ${ref} > all-sites.bed
 
     if [[ -s all-sites.bed ]]; then
 
@@ -488,7 +491,7 @@ process Generate_Consensus {
 
     bcftools consensus -f with-snps.fasta ${indels}.gz > with-indels-snps.fasta
 
-    bioawk -c fastx '{ gsub(/\\n/,"",seq); print ">${base}"; print \$seq }' with-indels-snps.fasta > ${base}-consensus.fasta
+    bioawk -c fastx '{ gsub(/\\n/,"",seq); print ">${base}-"\$name; print \$seq }' with-indels-snps.fasta > ${base}-consensus.fasta
 
     seq_len=\$(bioawk -c fastx 'BEGIN{bases=0} { bases+=length(\$seq) } END{print bases}' < ${base}-consensus.fasta)
 
