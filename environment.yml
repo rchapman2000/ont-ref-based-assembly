@@ -143,7 +143,7 @@ dependencies:
   - oauthlib=3.2.2
   - ont-fast5-api=4.1.1
   - openjdk=17.0.3
-  - openssl=1.1.1s
+  - openssl=1.1.1t
   - opt_einsum=3.3.0
   - orc=1.7.3
   - packaging=23.0
@@ -156,6 +156,7 @@ dependencies:
   - pixman=0.40.0
   - plotly=5.11.0
   - porechop=0.2.4
+  - primerclip=0.3.8
   - progressbar33=2.4
   - protobuf=3.19.4
   - pthread-stubs=0.4
@@ -174,7 +175,7 @@ dependencies:
   - python-flatbuffers=2.0
   - python-kaleido=0.2.1
   - python_abi=3.8
-  - pytz=2022.7
+  - pytz=2022.7.1
   - pyu2f=0.1.5
   - pyvcf3=1.0.3
   - re2=2022.02.01
