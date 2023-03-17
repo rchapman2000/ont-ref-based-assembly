@@ -13,6 +13,8 @@ process Setup {
 
         val secondaryAlignVal
 
+        val supplementaryAlignVal
+
         val primerFile
 
         val minClippedReadLen
@@ -74,6 +76,7 @@ process Setup {
     echo "Maxmimum Read Length Cutoff : ${maxReadLen}" >> analysis-parameters.txt
     echo "Reference Supplied : ${refName}" >> analysis-parameters.txt
     echo "Allow Secondary Alignments : ${secondaryAlignVal}" >> analysis-parameters.txt
+    echo "Allow Supplementary Alignments: ${supplementaryAlignVal}" >> analysis-parameters.txt
     echo "Primer File Supplied : ${primerFile}" >> analysis-parameters.txt
     echo "Minimum Clipped Read Length : ${minClippedReadLen}" >> analysis-parameters.txt
     echo "Unclipped Reads Removal: ${removeUnclipped}" >> analysis-parameters.txt
@@ -127,7 +130,7 @@ process Collect_Raw_Read_Stats {
     """
     #!/bin/bash
 
-    raw_reads=\$((\$(cat ${reads} | wc -l)/4)) 
+    raw_reads=\$((\$(zcat -f ${reads} | wc -l)/4)) 
 
     avg_raw_read_len=\$(bioawk -c fastx '{ totalBases += length(\$seq); totalReads++} END{print totalBases/totalReads}' ${reads})
 
@@ -225,6 +228,8 @@ process MiniMap2_Alignment {
         tuple val(refName), file(ref)
 
         val secondaryAlignParam
+
+        val supplementaryAlignParam
         // The existing summary string to be added to.
         val existingSummary
 
@@ -249,15 +254,17 @@ process MiniMap2_Alignment {
 
     minimap2 -ax map-ont ${secondaryAlignParam} ${ref} ${reads} > align.sam
 
-    samtools view -b -F 2048 align.sam | samtools sort > ${base}-align.bam
+    samtools view -b ${supplementaryAlignParam} align.sam | samtools sort > ${base}-align.bam
 
     mapped_reads=\$(samtools view -F 0x04 -c ${base}-align.bam)
 
-    summary="${existingSummary},\$mapped_reads"
+    average_read_depth=\$(samtools depth -a -J -q 0 -Q 0 ${base}-align.bam | awk -F'\t' 'BEGIN{totalCov=0} {totalCov+=\$3} END{print totalCov/NR}')
+
+    summary="${existingSummary},\$mapped_reads,\$average_read_depth"
     """
 }
 
-process Primer_Clipping {
+process Samtools_Primer_Clipping {
     input:
         tuple val(base), file(bam)
 
@@ -299,9 +306,48 @@ process Primer_Clipping {
     samtools ampliconclip -b ${ref}-uncaptured-regions.bed --both-ends ${base}-initial-clipped.bam | samtools sort > ${base}-clipped-sorted.bam
 
     clipped_mapped_reads=\$(samtools view -F 0x04 -c ${base}-clipped-sorted.bam)
+    
+    average_read_depth_post_clipping=\$(samtools depth -a -J -q 0 -Q 0 ${base}-clipped-sorted.bam | awk -F'\t' 'BEGIN{totalCov=0} {totalCov+=\$3} END{print totalCov/NR}')
 
-    summary="${existingSummary},\$clipped_mapped_reads"
+    summary="${existingSummary},\$clipped_mapped_reads,\$average_read_depth_post_clipping"
     """
+}
+
+process XGen_Primer_Clipping {
+    input:
+        tuple val(base), file(bam)
+
+        file primers
+
+        val outDir
+
+        val existingSummary
+    
+    output:
+
+        tuple val(base), file("${base}-clipped-sorted.bam")
+
+        env summary
+
+    publishDir "${outDir}", mode: 'copy'
+
+    script:
+    """
+    #!/bin/bash
+
+    samtools view -bS ${bam} | samtools sort -n -O sam > ${base}-sort.sam
+
+    primerclip -s ${primers} ${base}-sort.sam ${base}-clip.sam
+
+    samtools view -b ${base}-clip.sam | samtools sort > ${base}-clipped-sorted.bam
+
+    clipped_mapped_reads=\$(samtools view -F 0x04 -c ${base}-clipped-sorted.bam)
+
+    average_read_depth_post_clipping=\$(samtools depth -a -J -q 0 -Q 0 ${base}-clipped-sorted.bam | awk -F'\t' 'BEGIN{totalCov=0} {totalCov+=\$3} END{print totalCov/NR}')
+
+    summary="${existingSummary},\$clipped_mapped_reads,\$average_read_depth_post_clipping"
+    """
+
 }
 
 process Medaka_Consensus {

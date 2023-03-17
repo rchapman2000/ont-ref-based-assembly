@@ -32,13 +32,17 @@ OPTIONAL:
 
     --maxReadLen INT - If supplied, the pipeline will perform legnth filtering using NanoFilt excluding reads greater than this size [Default = off]
 
-    --noSecondaryAlignments - If supplied, the pipeline will filter secondary alignments [Default = off]
+    --noSecondaryAlignments - If supplied, the pipeline will filter secondary alignments. Secondary alignments are defined as alternative alignments of the reads besides the primary alignment. [Default = off]
 
-    --primers PRIMER_BED_FILE - Supply a bed file containing primer coordinates for clipping using 'Samtools Ampliconclip'
+    --noSupplementaryAlignments - If supplied, the pipeline will filter supplementary read alignments. Supplementary alignments are defined as those where a read is not mapped in a contiguous fashion (i.e. mustiple separate alignments). [Default = off]
 
-    --removeUnclipped - If supplied, the pipeline will remove unclipped reads from a bam alignment (Requires --primers option, [Default = off])
+    --xgen PRIMER_MASTER_FILE - Supply a masterfile to perform primer clipping using PrimerClip (for IDT xGen Assays) (Cannot be used with --primers option)
 
-    --minClippedReadLen INT - If primers are supplied via the --primers option, this value will denote the minimum length of a clipped read for it to be considered in downstream analysis (Requires --primers option, [Default = 0])
+    --primers PRIMER_BED_FILE - Supply a bed file containing primer coordinates for clipping using 'Samtools Ampliconclip' (Cannot be used with --xgen option)
+
+    --removeUnclipped - If supplied, the pipeline will remove unclipped reads from a bam alignment (Requires --primers option. Not compatible with --xgen option) [Default = off]
+
+    --minClippedReadLen INT - If primers are supplied via the --primers option, this value will denote the minimum length of a clipped read for it to be considered in downstream analysis (Requires --primers option. Not compatible with --xgen option) [Default = 0]
     
     --minCov INT - The minimum coverage below which a position will be masked [Default = 20]
 """
@@ -72,10 +76,10 @@ def createSummaryHeader (trim, minLenFilt, maxLenFilt, primers) {
         FinalHeader = FinalHeader + "Reads Post Length Filter,Average Filtered Read Length,"
     }
 
-    FinalHeader = FinalHeader + "Mapped Reads,"
+    FinalHeader = FinalHeader + "Mapped Reads,Average Read Depth,"
     
     if (primers != false) {
-        FinalHeader = FinalHeader + "Clipped Mapped Reads,"
+        FinalHeader = FinalHeader + "Clipped Mapped Reads,Average Read Depth Post-Clipping,"
     }
 
     FinalHeader = FinalHeader + "SNPs,Indels,Masked Sites,Coverage"
@@ -102,8 +106,10 @@ params.trim = false
 params.minReadLen = 0
 params.maxReadLen = 0
 params.noSecondaryAlignments = false
+params.noSupplementaryAlignments = false
 params.removeUnclipped = false
 params.primers = false
+params.xgen = false
 params.minClippedReadLen = 0
 
 
@@ -116,7 +122,8 @@ include { QC_Report as QC_Report_Trimmed} from './modules.nf'
 include { Length_Filtering } from './modules.nf'
 include { QC_Report as QC_Report_Filtered } from './modules.nf'
 include { MiniMap2_Alignment } from './modules.nf'
-include { Primer_Clipping } from './modules.nf'
+include { Samtools_Primer_Clipping } from './modules.nf'
+include { XGen_Primer_Clipping } from './modules.nf'
 include { Medaka_Consensus } from './modules.nf'
 include { Call_Variants } from './modules.nf'
 include { Generate_Consensus } from './modules.nf'
@@ -165,7 +172,7 @@ else {
     // in a trailing slash (to keep things consistent throughout) the
     // pipeline code.
     outDir = file(params.output).toString()
-    println(outDir)
+    println("Output Directory: ${outDir}")
 }
 
 // Checks the reference parameter. For this, we cannot use an
@@ -198,7 +205,7 @@ else {
     // a tuple.
     refData = tuple(refName, ref)
 }
-println(refData)
+//println(refData)
 
 
 model = ''
@@ -236,14 +243,40 @@ if (params.maxReadLen != 0) {
 
 allowSecondaryAlignVal = "ENABLED"
 secondaryAlignParam = "--secondary=yes"
-if (args.noSecondaryAlignments != false) {
+if (params.noSecondaryAlignments != false) {
     secondaryAlignParam = "--secondary=no"
     allowSecondaryAlignVal = "DISABLED"
 }
 
+allowSupplementaryAlignVal = "ENABLED"
+supplementaryAlignParam = ""
+if (params.noSupplementaryAlignments != false) {
+    supplementaryAlignParam = "-F 2048"
+    allowSupplementaryAlignVal = "DISABLED"
+}
+
 primerFile = ''
 primerFileName = 'NONE'
-if (params.primers != false) {
+primersSupplied = false
+if (params.primers != false && params.xgen != false){
+    // Both the --xgen and --primers options cannot be provided. If they are,
+    // notify the user and exit.
+    println "ERROR: Both --primers and --xgen were supplied. Only one can be supplied per run. Please adjust the parameters."
+    exit(1)
+}
+else if (params.primers == false && params.xgen != false){
+    if (file(params.xgen).exists()) {
+        primerFile = file(params.xgen)
+        primerFileName = primerFile.getName()
+        primersSupplied = true
+    }
+    else {
+        println "ERROR: ${params.xgen} does not exist."
+        sys.exit(1)
+    }
+
+} 
+else if (params.primers != false && params.xgen == false) {
     if (file(params.primers).exists()) {
         primerFile = file(params.primers)
         if (primerFile.getExtension() != "bed") {
@@ -252,6 +285,7 @@ if (params.primers != false) {
         }
 
         primerFileName = primerFile.getName()
+        primersSupplied = true
     }
     else {
         println "ERROR: ${params.primers} does not exist. Please provide an existing file."
@@ -261,29 +295,41 @@ if (params.primers != false) {
 
 minClippedReadLenVal = "DISABLED"
 if (params.minClippedReadLen != 0 && params.primers == false) {
-    println "ERROR: the --minClippedReadLen parameter requires the --primers parameter to be supplied. Please adjust the parameters."
-    exit(1)
+    if (params.xgen != false ) {
+        println "ERROR: the --minClippedReadLen parameter is not compatible with the --xgen option and requires the --primers parameter, instead. Please adjust the parameters."
+        exit(1)
+    }
+    else {
+        println "ERROR: the --minClippedReadLen parameter requires the --primers parameter to be supplied. Please adjust the parameters."
+        exit(1)
+    }
 }
-else if (params.minClippedReadLen != 0 && params.primers != false) {
+else if (params.minClippedReadLen != 0 && params.primers != false && params.xgen == false) {
     minClippedReadLenVal = params.minClippedReadLen + " bp"
 }
 
 removeUnclippedVal = "DISABLED"
 removeUnclippedParam = ""
 if (params.removeUnclipped != false && params.primers == false) {
-    println "ERROR: the --removeUnclipped parameter requires the --primers parameter to be supplied. Please adjust the parameters."\
-    exit(1)
+    if (params.xgen != false) {
+        println "ERROR: the --removeUnclipped parameter is not compatible with the --xgen option and requires the --primers parameter, instead. Please adjust the parameters."
+        exit(1)
+    }
+    else {
+        println "ERROR: the --removeUnclipped parameter requires the --primers parameter to be supplied. Please adjust the parameters."
+        exit(1)
+    }
 }
-else if (params.removeUnclipped != false && params.primers != false) {
+else if (params.removeUnclipped != false && params.primers != false && params.xgen == false) {
     removeUnclippedVal = "ENABLED"
     removeUnclippedParam = "--clipped"
 }
 
-summaryHeader = createSummaryHeader(params.trim, params.minReadLen, params.maxReadLen, params.primers)
+summaryHeader = createSummaryHeader(params.trim, params.minReadLen, params.maxReadLen, primersSupplied)
 
 workflow {
 
-    Setup ( trimmingEnabled, minReadLenVal, maxReadLenVal, refName, allowSecondaryAlignVal, primerFileName, minClippedReadLenVal, removeUnclippedVal, params.minCov, model, summaryHeader, outDir )
+    Setup ( trimmingEnabled, minReadLenVal, maxReadLenVal, refName, allowSecondaryAlignVal, allowSupplementaryAlignVal, primerFileName, minClippedReadLenVal, removeUnclippedVal, params.minCov, model, summaryHeader, outDir )
 
     QC_Report( inputFiles_ch, "Raw-Reads", outDir )
 
@@ -299,7 +345,7 @@ workflow {
 
             QC_Report_Filtered( Length_Filtering.out[0], "Length-Filtered-Reads", outDir )
 
-            MiniMap2_Alignment( Length_Filtering.out[0], outDir, refData, secondaryAlignParam, Length_Filtering.out[1] )
+            MiniMap2_Alignment( Length_Filtering.out[0], outDir, refData, secondaryAlignParam, supplementaryAlignParam, Length_Filtering.out[1] )
         }
     }
     else if (params.minReadLen != 0 || params.maxReadLen != 0) {
@@ -307,16 +353,21 @@ workflow {
 
         QC_Report_Filtered( Length_Filtering.out[0], "Length-Filtered-Reads", outDir )
 
-        MiniMap2_Alignment( Length_Filtering.out[0], outDir, refData, secondaryAlignParam, Length_Filtering.out[1] )
+        MiniMap2_Alignment( Length_Filtering.out[0], outDir, refData, secondaryAlignParam, supplementaryAlignParam, Length_Filtering.out[1] )
     }
     else {
-        MiniMap2_Alignment( Collect_Raw_Read_Stats.out[0], outDir, refData, secondaryAlignParam, Collect_Raw_Read_Stats.out[1] )
+        MiniMap2_Alignment( Collect_Raw_Read_Stats.out[0], outDir, refData, secondaryAlignParam, supplementaryAlignParam, Collect_Raw_Read_Stats.out[1] )
     }
 
     if (params.primers != false ) {
-        Primer_Clipping( MiniMap2_Alignment.out[0], primerFile, removeUnclippedParam, params.minClippedReadLen, baseDir, refData, outDir, MiniMap2_Alignment.out[1] )
+        Samtools_Primer_Clipping( MiniMap2_Alignment.out[0], primerFile, removeUnclippedParam, params.minClippedReadLen, baseDir, refData, outDir, MiniMap2_Alignment.out[1] )
 
-        Medaka_Consensus( Primer_Clipping.out[0], model, outDir, Primer_Clipping.out[1] )
+        Medaka_Consensus( Samtools_Primer_Clipping.out[0], model, outDir, Samtools_Primer_Clipping.out[1] )
+    }
+    else if (params.xgen != false) {
+        XGen_Primer_Clipping( MiniMap2_Alignment.out[0], primerFile, outDir, MiniMap2_Alignment.out[1] )
+
+        Medaka_Consensus( XGen_Primer_Clipping.out[0], model, outDir, XGen_Primer_Clipping.out[1])
     }
     else {
         Medaka_Consensus( MiniMap2_Alignment.out[0], model, outDir, MiniMap2_Alignment.out[1] )
