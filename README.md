@@ -70,10 +70,12 @@ The pipeline also supports the following optional arguments:
 | --trim | *None* | If supplied, the pipeline will trim ONT adapters/barcodes from reads using Porechop. [Default = off] |
 | --minReadLen | *Int* | If supplied, the pipeline will perform length filtering using Nanofilt excluding reads shorter than this value. [Default = off] |
 | --maxReadLen | *Int* | If supplied, the pipeline will perform length filtering using Nanofilt excluding reads larger than this value. [Default = off] |
-| --noSecondaryAlignments | *None* | If supplied, the pipeline will only consider primary read alignments. [Default = off] |
-| --primers | *File* | The pipeline will take a bed file containing coordinates and perform primer clipping using Samtools. the start and end regions of reads that fall within these coordinates will be soft-clipped from the alignmetn [Default = disabled] |
-| --removeUnclipped | *None* | If supplied (and a primer file supplied), the pipeline will remove unclipped reads from the alignment. (Requires --primers option, [Default = off]) |
-| --minClippedReadLen | *Int* | If supplied (and a primer file supplied), the pipeline will remove clipped reads shorter than this length from the alignment. (Requires --primers option, [Default = off]) |
+| --noSecondaryAlignments | *None* | If supplied, the pipeline will filter secondary alignments. Secondary alignments are defined as alternative alignments of the reads besides the primary alignment. [Default = off] |
+| --noSupplementaryAlignments | *None* | If supplied, the pipeline will filter supplementary read alignments. Supplementary alignments are defined as those where a read is not mapped in a contiguous fashion (i.e. mustiple separate alignments). [Default = off] |
+| --xgen | *File* | The pipeline will take a masterfile provided by IDT containing primer coordinates and perform primer clipping using the PrimerClip tool provided by IDT. (Cannot be used with the --primers option)[Default = disabled] |
+| --primers | *File* | The pipeline will take a bed file containing coordinates and perform primer clipping using Samtools. the start and end regions of reads that fall within these coordinates will be soft-clipped from the alignment. (Cannot be used with the --xgen option) [Default = disabled] |
+| --removeUnclipped | *None* | If supplied (and a primer file supplied), the pipeline will remove unclipped reads from the alignment. (Requires --primers option and not compatible with the --xgen option) [Default = off] |
+| --minClippedReadLen | *Int* | If supplied (and a primer file supplied), the pipeline will remove clipped reads shorter than this length from the alignment. (Requires --primers option and not compatible with the --xgen option) [Default = off] |
 | --minCov | *Int* | The minimum depth of coverage required for a position to be called. Sites with a depth less than this value will be reported as "N" [Default = 20] |
 
 To view the list of options from the command line, use the following command:
