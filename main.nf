@@ -26,11 +26,11 @@ OPTIONS:
 
 OPTIONAL:
 
-    --trim - The pipeline will use Porechop to identify and trim ONT adapters found within reads
+    --trim - The pipeline will use Porechop to identify and trim ONT adapters found within reads [Default = off]
 
-    --minReadLen INT - If supplied, the pipeline will perform length filtering using NanoFilt excluding reads less than this size [Default = off]
+    --minReadLen INT - If supplied, the pipeline will perform length filtering using Chopper excluding reads less than this size [Default = off]
 
-    --maxReadLen INT - If supplied, the pipeline will perform legnth filtering using NanoFilt excluding reads greater than this size [Default = off]
+    --maxReadLen INT - If supplied, the pipeline will perform legnth filtering using Chopper excluding reads greater than this size [Default = off]
 
     --noSecondaryAlignments - If supplied, the pipeline will filter secondary alignments. Secondary alignments are defined as alternative alignments of the reads besides the primary alignment. [Default = off]
 
@@ -240,7 +240,6 @@ maxReadLenParam = ""
 if (params.maxReadLen != 0) {
     maxReadLenVal = params.maxReadLen + " bp"
     maxReadLenParam = "--maxlength ${params.maxReadLen}"
-    println maxReadLenParam
 }
 
 allowSecondaryAlignVal = "ENABLED"
