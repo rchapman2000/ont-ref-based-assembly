@@ -69,7 +69,7 @@ def createSummaryHeader (trim, minLenFilt, maxLenFilt, primers) {
     FinalHeader = "Sample,Raw Reads,Average Raw Read Length,"
 
     if (trim != false) {
-        FinalHeader = FinalHeader + "Average Trimmed Read Length,"
+        FinalHeader = FinalHeader + "Read Post Porechop Trimming,Average Trimmed Read Length,"
     }
 
     if (minLenFilt != 0 || maxLenFilt != 0) {
@@ -116,11 +116,10 @@ params.minClippedReadLen = 0
 
 include { Setup } from './modules.nf'
 include { QC_Report } from './modules.nf'
+include { QC_Report_Filtered } from './modules.nf'
 include { Collect_Raw_Read_Stats } from './modules.nf'
 include { Porechop_Trimming } from './modules.nf'
-include { QC_Report as QC_Report_Trimmed} from './modules.nf'
 include { Length_Filtering } from './modules.nf'
-include { QC_Report as QC_Report_Filtered } from './modules.nf'
 include { MiniMap2_Alignment } from './modules.nf'
 include { Samtools_Primer_Clipping } from './modules.nf'
 include { XGen_Primer_Clipping } from './modules.nf'
@@ -233,7 +232,7 @@ minReadLenVal = "DISABLED"
 minReadLenParam = ""
 if (params.minReadLen != 0) {
     minReadLenVal = params.minReadLen + " bp"
-    minReadLenParam = "--length ${params.minReadLen}"
+    minReadLenParam = "-l ${params.minReadLen}"
 }
 
 maxReadLenVal = "DISABLED"
@@ -334,27 +333,32 @@ workflow {
 
     Setup ( trimmingEnabled, minReadLenVal, maxReadLenVal, refName, allowSecondaryAlignVal, allowSupplementaryAlignVal, primerFileName, minClippedReadLenVal, removeUnclippedVal, params.minCov, model, summaryHeader, outDir )
 
-    QC_Report( inputFiles_ch, "Raw-Reads", outDir )
+    QC_Report( inputFiles_ch, outDir )
 
     Collect_Raw_Read_Stats( inputFiles_ch )
 
-    if (params.trim != false) {
+    if (params.trim != false && (params.minReadLen != 0 || params.maxReadLen != 0)) {
         Porechop_Trimming( Collect_Raw_Read_Stats.out[0], outDir, Collect_Raw_Read_Stats.out[1] )
 
-        QC_Report_Trimmed( Porechop_Trimming.out[0], "Trimmed-Reads", outDir )
+        Length_Filtering( Porechop_Trimming.out[0], minReadLenParam, maxReadLenParam, outDir, Porechop_Trimming.out[2] )
 
-        if (params.minReadLen != 0 || params.maxReadLen != 0) {
-            Length_Filtering( Porechop_Trimming.out[0], minReadLenParam, maxReadLenParam, outDir, Porechop_Trimming.out[2] )
+        QC_Report_Filtered( Length_Filtering.out[0], outDir )
 
-            QC_Report_Filtered( Length_Filtering.out[0], "Length-Filtered-Reads", outDir )
+        MiniMap2_Alignment( Length_Filtering.out[0], outDir, refData, secondaryAlignParam, supplementaryAlignParam, Length_Filtering.out[1] )
 
-            MiniMap2_Alignment( Length_Filtering.out[0], outDir, refData, secondaryAlignParam, supplementaryAlignParam, Length_Filtering.out[1] )
-        }
     }
-    else if (params.minReadLen != 0 || params.maxReadLen != 0) {
+    else if (params.trim != false && params.minReadLen == 0 && params.maxReadLen == 0) {
+
+        Porechop_Trimming( Collect_Raw_Read_Stats.out[0], outDir, Collect_Raw_Read_Stats.out[1] )
+
+        QC_Report_Filtered( Porechop_Trimming.out[0], outDir )
+
+        MiniMap2_Alignment( Porechop_Trimming.out[0], outDir, refData, secondaryAlignParam, supplementaryAlignParam, Porechop_Trimming.out[2] )
+    }
+    else if (params.trim == false && (params.minReadLen != 0 || params.maxReadLen != 0)) {
         Length_Filtering( Collect_Raw_Read_Stats.out[0], minReadLenParam, maxReadLenParam, outDir, Collect_Raw_Read_Stats.out[1] )
 
-        QC_Report_Filtered( Length_Filtering.out[0], "Length-Filtered-Reads", outDir )
+        QC_Report_Filtered( Length_Filtering.out[0], outDir )
 
         MiniMap2_Alignment( Length_Filtering.out[0], outDir, refData, secondaryAlignParam, supplementaryAlignParam, Length_Filtering.out[1] )
     }
@@ -362,7 +366,7 @@ workflow {
         MiniMap2_Alignment( Collect_Raw_Read_Stats.out[0], outDir, refData, secondaryAlignParam, supplementaryAlignParam, Collect_Raw_Read_Stats.out[1] )
     }
 
-    if (params.primers != false ) {
+    if (params.primers != false) {
         Samtools_Primer_Clipping( MiniMap2_Alignment.out[0], primerFile, removeUnclippedParam, params.minClippedReadLen, baseDir, refData, outDir, MiniMap2_Alignment.out[1] )
 
         Medaka_Consensus( Samtools_Primer_Clipping.out[0], model, outDir, Samtools_Primer_Clipping.out[1] )
